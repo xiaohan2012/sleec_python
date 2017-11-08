@@ -10,9 +10,9 @@ class RegressionModel():
         
         self.VX = tf.matmul(self.V, tf.transpose(self.X), name='VX')
         
-        self.l2_loss = tf.nn.l2_loss(self.V, name='l2_loss')
-        # self.l2_loss = tf.reduce_mean(tf.pow(self.V, 2), name='l2_loss')
-        self.l1_loss = tf.reduce_mean(tf.abs(self.VX), name='l1_loss')
+        # self.l2_loss = tf.nn.l2_loss(self.V, name='l2_loss')
+        self.l2_loss = tf.reduce_sum(tf.pow(self.V, 2), name='l2_loss')
+        self.l1_loss = tf.reduce_sum(tf.abs(self.VX), name='l1_loss')
         
         self.error = tf.reduce_mean(tf.pow(self.W - tf.transpose(self.VX), 2))
         self.loss = self.error + lambda2 * self.l2_loss + lambda1 * self.l1_loss
@@ -42,6 +42,6 @@ def learn_V(X_val, Z_val, lambda1=1, lambda2=1, learning_rate=0.1,
 
             if print_log:
                 print("at step {}, loss={}, error={}, l1={}, l2={}".format(
-                    i, loss_val, error_val, l1_val, l2_val))
+                    i, loss_val, error_val, lambda1 * l1_val, lambda2 * l2_val))
                 
         return sess.run([model.V], feed_dict=feed_dict)[0]
