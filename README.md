@@ -14,7 +14,7 @@ list of variations from the original paper:
 2. Alternating Least Sqaure to learn low-rank embedding `Z`
    - without `l1` regularization
    - the paper uses Singular Value Projection
-3. Ridge regression to optimize the linear regressor
+3. ElasticNet to optimize the linear regressor
   - without `l1` regularization
   - the papers uses ADMM with `l1`
 
