@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[137]:
+# In[1]:
 
 
 import numpy as np
@@ -18,11 +18,12 @@ from collections import namedtuple
 
 from ensemble import Model, Ensemble
 from helpers import precision_at_ks, print_hdf5_object, project
+from core import learn_V
 
 from tqdm import tqdm
 
 
-# In[38]:
+# In[2]:
 
 
 dataset="bibtex"
@@ -34,7 +35,7 @@ def load_result():
     return list(loadmat(data_dir + '/result.mat')['data'][0][0])
 
 
-# In[119]:
+# In[3]:
 
 
 import h5py
@@ -52,7 +53,7 @@ print('precison', list(r['precision']))
 print(list(r))
 
 
-# In[158]:
+# In[196]:
 
 
 params = namedtuple('args', ['num_learner', 'num_clusters',
@@ -68,18 +69,18 @@ params.w_thresh = 0.01  # ?
 params.sp_thresh = 0.01  # ?
 params.NNtest = 25
 params.normalize = 1  # ?
-params.regressor_lambda1 = 0.01
-params.regressor_lambda2 = 1.0
+params.regressor_lambda1 = 1e-6
+params.regressor_lambda2 = 1e-3
 params.embedding_lambda = 0.1  # determined automatically in WAltMin_asymm.m
 
 
-# In[121]:
+# In[38]:
 
 
 train_X, train_Y, test_X, test_Y = load_input()
 
 
-# In[89]:
+# In[39]:
 
 
 clusterings = []
@@ -89,7 +90,7 @@ for i in range(params.num_learners):
     clusterings.append(model)
 
 
-# In[159]:
+# In[197]:
 
 
 learners = []
@@ -103,12 +104,14 @@ for clus_model in tqdm(clusterings):
         X = train_X[data_idx, :]
         Y = train_Y[data_idx, :]        
 
+        print('embedding learning: building kNN graph')
         # build the kNN graph
         graph = kneighbors_graph(Y, params.SVP_neigh, mode='distance', metric='cosine',
                                  include_self=True,                        
                                  n_jobs=-1)
         graph.data = 1 - graph.data  # convert to similarity
         
+        print('embedding learning: ALS')
         # learn the local embedding
         als_model = implicit.als.AlternatingLeastSquares(factors=params.out_Dim,
                                                          regularization=params.embedding_lambda)
@@ -117,18 +120,28 @@ for clus_model in tqdm(clusterings):
         # the embedding
         # shape: #instances x embedding dim
         Z = als_model.item_factors                
+        
+        print('linear regressor training')
+        # learn the linear regressor
+        if True:
+            # regressor = Ridge(fit_intercept=True, alpha=params.regressor_lambda2)
+            regressor = ElasticNet(alpha=0.1, l1_ratio=0.001)
+            regressor.fit(X, Z)
+            # shape: embedding dim x feature dim
+            V = regressor.coef_  
+        else:
+            # learn V with l2 on V and l1 on VX
+            ## note that X is sparse
+            V = learn_V(X.toarray(), Z,
+                        lambda1=params.regressor_lambda1,
+                        lambda2=params.regressor_lambda2,
+                        iter_max=200,
+                        print_log=True)
+        
         # the nearest neighbour model
-        Z_neighbors = NearestNeighbors(n_neighbors=params.NNtest, metric='cosine').fit(Z)
-        
-        # learn the linear regressor        
-        regressor = Ridge(fit_intercept=False, alpha=params.regressor_lambda2)
-#         regressor = ElasticNet(fit_intercept=False,
-#                                alpha=params.regressor_lambda2,
-#                                l1_ratio=params.regressor_lambda1)
-        regressor.fit(X, Z)
-        
-        # shape: embedding dim x feature dim
-        V = regressor.coef_  
+        fitted_Z = X.toarray() @ V.T
+
+        Z_neighbors = NearestNeighbors(n_neighbors=params.NNtest, metric='cosine').fit(fitted_Z)
         
         projected_center = project(V, clus_model.cluster_centers_[i])
         learned = {
@@ -141,7 +154,7 @@ for clus_model in tqdm(clusterings):
     learners.append(models)
 
 
-# In[160]:
+# In[198]:
 
 
 models = [Model(learner, train_Y)
@@ -149,19 +162,19 @@ models = [Model(learner, train_Y)
 ensemble = Ensemble(models)
 
 
-# In[161]:
+# In[199]:
 
 
 pred_Y = ensemble.predict_many(test_X)
 
 
-# In[162]:
+# In[200]:
 
 
 performance = precision_at_ks(test_Y, pred_Y)
 
 
-# In[168]:
+# In[201]:
 
 
 for k, s in performance.items():
