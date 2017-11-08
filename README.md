@@ -19,9 +19,15 @@ list of variations from the original paper:
   - the papers uses ADMM with `l1`
 
 # update
-  - **2017-11-01**: for bibtex dataset, achieved p1, p3 and p5 are 0.5964 (0.6532), 0.3455 (0.3973) and 0.2461 (0.2889) (`(..)` is score by the paper)
-
+  - **2017-11-01**:
+    - for bibtex dataset, achieved p1, p3 and p5 are 0.5964 (0.6532), 0.3455 (0.3973) and 0.2461 (0.2889) (`(..)` is score by the paper)
+  - **2017-11-08**: 
+    - embedding is replaced by `VX` instead of `Z`
+    - added tensorflow version that adds l1 penalty on `VX` as well
+    - [kNN predicion with weight](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm)
+    - parameter tuning on elacstic net and tensorflow version
+    - for bibtex, achieved p1 (0.6215), p3 (0.3716) and p5 (0.2697)
+  
 # todo
 
-- ensemble prediction method: add weight?
-- how to enforce `l1` on `VX`?
+
